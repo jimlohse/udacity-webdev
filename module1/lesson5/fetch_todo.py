@@ -27,8 +27,10 @@ def create_todo():
     body = {}
 
     try:
+        # print("TRYING TO GET JSON FOR description")
         description=request.get_json()['description']
-        todo = Todo(description=description)
+        # print("description is " + description)
+        todo = Todo(description=description, completed)
         db.session.add(todo)
         db.session.commit()
         body['description'] = todo.description

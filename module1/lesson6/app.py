@@ -1,5 +1,5 @@
 import sys
-from flask import Flask, json, render_template, request, redirect, url_for, jsonify
+from flask import Flask, json, render_template, request, redirect, url_for, jsonify, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
@@ -22,8 +22,6 @@ class Todo(db.Model):
     def __repr__(self):
         return f'<Todo ID: {self.id}, Description: {self.description}>'
 
-
-
 @app.route('/todos/create', methods=['POST'])
 def create_todo():
 
@@ -32,7 +30,7 @@ def create_todo():
 
     try:
         description=request.get_json()['description']
-        todo = Todo(description=description)
+        todo = Todo(description=description, completed=False)
         db.session.add(todo)
         db.session.commit()
         body['description'] = todo.description
@@ -43,7 +41,25 @@ def create_todo():
     finally:
         db.session.close()
 
-    return jsonify(body)
+    if not error:
+        return jsonify(body)
+    else:
+        abort(400)
+    # return redirect(url_for('index'))
+
+@app.route('/todos/<todo_id>/delete-todo', methods=['DELETE'])
+def delete_todo(todo_id):
+    try:
+        Todo.query.filter_by(id=todo_id).delete()
+        db.session.commit()
+
+    except:
+        db.session.rollback()
+    finally:
+        db.session.close()
+    # return redirect(url_for('index'))
+    # return redirect('http://127.0.0.1:5000')
+    return jsonify({ 'success': True })
 
 @app.route('/todos/<todo_id>/set-completed', methods=['POST'])
 def set_completed_todo(todo_id):
@@ -63,5 +79,4 @@ def index():
     return render_template('index.html', data=Todo.query.order_by('id').all())
 
 if __name__ == '__main__':
-    print('HELLOW')
     app.run()

@@ -9,7 +9,7 @@
                 list-style: none;
                 padding: 0;
                 margin: 0;
-                width: 200px;
+                width: 300px;
             }
             li {
                 clear: both;
@@ -27,17 +27,41 @@
         <div id="error" class="hidden">Something went wrong</div>
         <form id='form'>
             <input type="text" id="description" name="description">
-            <input type="submit" name="Create">
+            <input type="submit" name="Create" value="Create">
         </form>
         <ul id="todos">
             {% for d in data %}
-            <li><input class="checkbox-completed" data-id="{{ d.id }}" 
+            <li id="listItem{{ d.id }}"><input class="checkbox-completed" data-id="{{ d.id }}" 
                 type="checkbox" {% if d.completed %} checked {% endif %} /> 
-                {{ d.description }}<button>&cross;</button></li>
+                {{ d.description }}
+                <button class="delete-button" data-id="{{ d.id }}">&cross;</button></li>
             {% endfor %}
         </ul>
         <script>
             
+            const deleteButtons = document.querySelectorAll('.delete-button');
+            for (let i = 0; i < deleteButtons.length; i++) {
+                const btn = deleteButtons[i];
+                btn.onclick = function(e) {
+                    const todoId = e.target.dataset['id'];
+                    fetch('/todos/' + todoId + '/delete-todo', {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })  
+                    .then(function() {
+                        document.getElementById('error').className = 'hidden';
+                        listItemToDelete = document.getElementById('listItem' + todoId);
+                        listItemToDelete.parentNode.removeChild(listItemToDelete);
+                    })
+                    .catch(function() {
+                        document.getElementById('error').value = 'Something went wrong with item delete';
+                        document.getElementById('error').className = '';
+                    })
+                }
+            }
+
             const checkboxes = document.querySelectorAll('.checkbox-completed');
             for (let i = 0; i < checkboxes.length; i++) {
                 const checkbox = checkboxes[i];
@@ -58,6 +82,7 @@
                         document.getElementById('error').className = 'hidden';
                     })
                     .catch(function() {
+                        document.getElementById('error').value = 'Something went wrong with item completion';
                         document.getElementById('error').className = '';
                     })
                 }
@@ -78,12 +103,15 @@
                 })
                 .then(response => response.json())
                 .then(jsonResponse => {
-                    console.log('In the seconds then')
+                    console.log('In the second then')
                     console.log('response', jsonResponse);
-                    li = document.createElement('li');
-                    liItem.innerText = desc;
-                    document.getElementById('todos').appendChild(li);
+                    const liItem = document.createElement('LI');
+                    liItem.innerHTML = desc;
+                    document.getElementById('todos').appendChild(liItem);
                     document.getElementById('error').className = 'hidden';
+
+                    // clear the description field for the task we just added
+                    document.getElementById('description').value = '';
                 })
                 .catch(function() {
                     document.getElementById('error').className = '';
