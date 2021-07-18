@@ -13,15 +13,87 @@ db = SQLAlchemy(app)
 
 migrate = Migrate(app, db)
 
+class TodoList(db.Model):
+    __tablename__ = 'todolists'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False)
+    todos = db.relationship('Todo', backref='list', lazy=True)
+    alldone = db.Column(db.Boolean, nullable=True, default=False)
+
 class Todo(db.Model):
     __tablename__ = 'todos'
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(), nullable=False)
     completed = db.Column(db.Boolean, nullable=False, default=False)
+    list_id = db.Column(db.Integer, db.ForeignKey(
+        'todolists.id'), nullable=False)
 
     def __repr__(self):
         return f'<Todo ID: {self.id}, Description: {self.description}>'
 
+# load lists
+@app.route('/lists/<list_id>')
+def get_list_todos(list_id):
+    return render_template('index.html', lists=TodoList.query.all(),
+        active_list=TodoList.query.get(list_id),
+        todos=Todo.query.filter_by(list_id=list_id).order_by('id').all())
+
+# create a list
+@app.route('/lists/create', methods=['POST'])
+def create_list():
+
+    error = False
+    body = {}
+
+# set entire list completed
+@app.route('/lists/<list_id>/set-completed', methods=['POST'])
+def set_completed_list(list_id):
+    error = False
+    try:
+        # print("request is not set yet")
+        its_complete = request.get_json()['completed']
+        # print("Complete is: " + str(its_complete))
+        list = TodoList.query.get(list_id)
+        list.alldone = its_complete
+        
+        for todo in list.todos:
+            todo.completed = its_complete
+
+        db.session.commit()
+    except:
+        db.session.rollback()
+        error = True
+    finally:
+        db.session.close()
+    
+    if not error:
+        return redirect(url_for('index'))
+    else:
+        abort(500)
+
+# delete a list (alert for confirmation)
+@app.route('/lists/<list_id>/delete-list', methods=['DELETE'])
+def delete_list(list_id):
+    
+    error = False
+    
+    try:
+        list = TodoList.query.get(list_id)
+        for todo in list.todos:
+            db.session.delete(todo)
+        db.session.delete(list)        
+    except:
+        error = True
+        db.session.rollback()
+    finally:
+        db.session.close()
+
+    if not error:
+        return redirect()
+    else:
+        abort(500)
+
+# create a todo
 @app.route('/todos/create', methods=['POST'])
 def create_todo():
 
@@ -47,6 +119,7 @@ def create_todo():
         abort(400)
     # return redirect(url_for('index'))
 
+#delete a todo item
 @app.route('/todos/<todo_id>/delete-todo', methods=['DELETE'])
 def delete_todo(todo_id):
     try:
@@ -61,6 +134,7 @@ def delete_todo(todo_id):
     # return redirect('http://127.0.0.1:5000')
     return jsonify({ 'success': True })
 
+# set todo item completed
 @app.route('/todos/<todo_id>/set-completed', methods=['POST'])
 def set_completed_todo(todo_id):
     try:
@@ -76,7 +150,7 @@ def set_completed_todo(todo_id):
 
 @app.route('/')
 def index():
-    return render_template('index.html', data=Todo.query.order_by('id').all())
+    return redirect(url_for('get_list_todos', list_id=1))
 
 if __name__ == '__main__':
     app.run()
