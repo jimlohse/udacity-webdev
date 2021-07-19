@@ -48,9 +48,9 @@
             <div id="lists">
                 <h2>Todo Lists</h2>
                 <div id="list-error" class="hidden">Something went wrong with a list</div>
-                <form id='lists_form'>
-                    <input type="text" id="list_name" name="list_name">
-                    <input type="submit" name="Create List" value="Create List">
+                <form action="/lists/create" method="POST" id='lists-form'>
+                    <input type="text" id="list-name" name="list-name">
+                    <button type="submit">Create List</button>
                 </form>
                 <ul id="list_names">
                     {% for list in lists %}
@@ -116,13 +116,46 @@
                     console.log(e);
                     const listId = e.target.dataset.id
 
-                    fetch('/lists' + listId + '/delete-list', { method: 'DELETE'})
-                    .then()
+                    fetch('/lists/' + listId + '/delete-list', { method: 'DELETE'})
+                    .then(function() {
+                        const item = e.target.parentNode;
+                        item.remove();
+                        window.location.reload(true);
+                    })
+                    .catch(function(e){
+                        console.error(e);
+                        document.getElementById("list-error").className = "";
+                    });
                 }
             }
 
             // set action for creating list 
+            document.getElementById('lists-form').onsubmit = function(e){
+                e.preventDefault();
 
+                newListName = document.getElementById('list-name').value;
+
+                fetch('/lists/create', {
+                    method : 'POST',
+                    body: JSON.stringify({
+                        'name': newListName
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(function(response) {
+                    return response.json();
+                }).then(function(jsonResponse){
+                    const liItem = document.createElement("LI");
+                    liItem.innerHTML=jsonResponse['name'];
+                    document.getElementById('list-error').className = 'hidden';
+                    window.location.reload(true);
+                })
+                .catch(function(error){
+                    document.getElementById('list-error').className = '';
+                })
+            }
 
         // **** LIST ITEMS ****
             // set action for list item complete button

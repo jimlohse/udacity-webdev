@@ -1,5 +1,7 @@
 import sys
 from flask import Flask, json, render_template, request, redirect, url_for, jsonify, abort
+from flask_debugtoolbar import DebugToolbarExtension
+
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
@@ -8,8 +10,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['FLASK_DEBUG'] = True
 app.config['SQLALCHEMY_DATABASE_URI'] = \
     'postgresql+psycopg2://postgres:letmein@localhost:5432/tododb'
+app.config['SECRET_KEY'] = '42'
 
 db = SQLAlchemy(app)
+
+toolbar = DebugToolbarExtension(app)
 
 migrate = Migrate(app, db)
 
@@ -44,6 +49,26 @@ def create_list():
 
     error = False
     body = {}
+
+    try: 
+        print("request name is " + str(request.get_json()['name']))
+        name = request.get_json()['name']
+        todo_list = TodoList(name=name)
+        db.session.add(todo_list)
+        db.session.commit()
+        body['name'] = todo_list.name
+        body['id'] = todo_list.id
+    except:
+        db.session.rollback()
+        error = True
+    finally:
+        db.session.close()
+    if not error:
+        return jsonify(body)
+    else:
+        print("Hit the else statement, error is True")
+        abort(500)
+
 
 # set entire list completed
 @app.route('/lists/<list_id>/set-completed', methods=['POST'])
@@ -81,7 +106,8 @@ def delete_list(list_id):
         list = TodoList.query.get(list_id)
         for todo in list.todos:
             db.session.delete(todo)
-        db.session.delete(list)        
+        db.session.delete(list)
+        db.session.commit()     
     except:
         error = True
         db.session.rollback()
@@ -89,7 +115,7 @@ def delete_list(list_id):
         db.session.close()
 
     if not error:
-        return redirect()
+        return jsonify({'success': True})
     else:
         abort(500)
 
